@@ -12,7 +12,7 @@ from jsonpath_ng.ext import parse
 #Create token for Azure API
 def get_token(client_id,tenant,redirect_uri,resource,client_secret):
     
-    url = 'https://login.microsoftonline.us/{t2}/oauth2/token'.format(t2 = tenant)#cArmy DEV Tenant
+    url = 'https://login.microsoftonline.us/{t2}/oauth2/token'.format(t2 = tenant)
     
     body = {
         'grant_type' : 'client_credentials',
