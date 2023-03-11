@@ -6,19 +6,11 @@
 
 #imports
 import requests, json
-import os, pandas as pd
-import array as arr
 import pandas
 from jsonpath_ng.ext import parse
-from azure.identity import DefaultAzureCredential
-from azure.monitor.query import LogsQueryClient, MetricsQueryClient
-from datetime import datetime, timezone, timedelta
 
 #Create token for Azure API
 def get_token(client_id,tenant,redirect_uri,resource,client_secret):
-    
-    import requests, json
-    from jsonpath_ng.ext import parse
     
     url = 'https://login.microsoftonline.us/{t2}/oauth2/token'.format(t2 = tenant)#cArmy DEV Tenant
     
@@ -113,7 +105,7 @@ def logquery(token,query,workspace,additionalworkspaces=None):
     #Takes the response in text form and and loads it into a dict using json.loads
     #This allows for iteration later on.
     txt_response = requests.post(url, headers = auth, json=body)
-    print(txt_response , txt_response.text)
+    #print(txt_response , txt_response.text)
     json_response = json.loads(str(txt_response.text))
     #print(json.dumps(json_response))
     #print(len(json_response['tables'][0]["columns"]))
@@ -137,15 +129,15 @@ def workspaces_query(token, query, workspace, additionalworkspaces):
     #Code by Rowley
     #Azure Monitor query requires a query and at least 1 target workspace 
     #loop to iterate over a list of workspaces fed into the function
-    resultset=pd.DataFrame()
+    resultset=pandas.DataFrame()
     for workspaces in additionalworkspaces :
         #additional_workspaces=first# ['c90d1a9e-ea4b-44c9-97cd-bec0a9b0e2e7','9bbcac46-5949-4e69-afb9-84840e0e7ebe']
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
+        pandas.set_option('display.max_rows', None)
+        pandas.set_option('display.max_columns', None)
          
         #send the query to the target workspace(s), then add it to a dataframe, finally append that dataframe to an empty dataframe.
         logs = logquery(token, query, workspace, workspaces)
-        batch = pd.DataFrame(columns=logs[1], data=logs[2])
+        batch = pandas.DataFrame(columns=logs[1], data=logs[2])
         resultset = resultset.append(batch, ignore_index=True) 
     return resultset
 
