@@ -6,7 +6,7 @@ import time
 import azreader as azr
 import traceback
 from threading import *
-import csv
+#import csv
 import pandas as pd
   
   
@@ -41,19 +41,22 @@ wks_id=ttk.Entry(tab1, width=100)
 wks_id.grid(column = 0,row = 3, sticky="nw", pady=10)
 
 query = Text(tab1, height=10, width=100, relief="sunken")
-query.insert('1.0', 'VmConnection | take 10')
+query.insert('1.0', 'VMConnection | take 10')
 query.grid(column = 0,row = 5)
 
 #Sample function to attach to a button for query window
-
+#Declare global variables
+global valid_workspaces
+valid_workspaces=list()
+global results
 results=None
+
 def query_threading():
     # Call query function
     t1=Thread(target=query_results_writer)
     t1.start()
 
 def query_results_writer():
-    global results
     messages['state']='normal'
     print(wks_id.get())
     print(logtoken.get())
@@ -80,6 +83,7 @@ def query_results_writer():
         msg="Query Executed\n==========\n{Q}==========\n\n".format(Q=query.get('1.0','end'))
         messages.insert('end', msg)
         messages.insert('end',results)
+        messages.insert('end','\n\n')
         messages.see('end')
     except:
         messages.insert('end', time.ctime(time.time()), '', '\n')
@@ -92,7 +96,7 @@ def query_results_writer():
 #Creates button and tells it to run the function defined above on click.
 ttk.Button(tab1,text="Run Query", command=query_threading).grid(column = 0,row = 99)
 
-messages = Text(tab1,state="disabled", height=10, width=100, relief="sunken")
+messages = Text(tab1,state="disable", height=30, width=100, relief="sunken")
 scrollbar = Scrollbar(messages)
 messages.insert('1.0', 'Messages')
 messages.grid(column = 0,row = 199)
@@ -261,8 +265,6 @@ def read_workspace_csv():
             #Compare our list with the global workspaces list, check for errors
             valid_workspace_count=0
             #Workspace ID matching to determine if all workspaces are valid
-            global valid_workspaces
-            valid_workspaces=list()
             invalid_workspaces=list()
             workspace_list_concatenated=list()
             for workspace_list in workspaces:
@@ -276,11 +278,11 @@ def read_workspace_csv():
                     #Add to our list of invalid Workspace IDs
                     invalid_workspaces.append(workspaces_df.at[row,"WORKSPACE ID"])
             # Need to reparse our valid_workspaces into a list of lists
-            # We will call the workspace_sorter function (At the end of this file)
+            # We will call the workspace_sorter function (Now in azreader!)
             if(valid_workspaces == []):
                 rgtoken_mesg.insert('end',"No valid workspaces, defaulting to all workspaces for the query")
             else:
-                valid_workspaces=workspace_sorter(valid_workspaces)
+                valid_workspaces=azr.workspace_sorter(valid_workspaces)
     
             rgtoken_mesg.insert('end',"\nWorkspaces from csv file successfuly loaded, \n    Total workspaces in csv:  " + str(workspaces_df.shape[0]))
             rgtoken_mesg.insert('end',"\n    Total valid workspaces from csv:  " + str(valid_workspace_count)+"\n")
@@ -300,22 +302,6 @@ ttk.Label(tab3,textvariable=rgtoken_status).grid(column =0 ,row = 15)
 
 rgtoken_mesg = Text(tab3,state="disabled", height=30, width=100, relief="sunken")
 rgtoken_mesg.grid(column = 0,row = 17)
-
-def workspace_sorter(workspace_list):
-    valid_workspace_lists=[]
-    if(len(workspace_list)>10):
-        remainder=len(workspace_list)
-        while(remainder > 0):
-            valid_workspace_lists.append(workspace_list[remainder-10:remainder-0])
-            if(remainder <= 10):
-                valid_workspace_lists.append(workspace_list[0:remainder-0])
-            remainder-=10
-    else:
-        valid_workspace_lists.append(workspace_list)
-    
-    valid_workspace_lists = [ele for ele in valid_workspace_lists if ele != []]
-    return valid_workspace_lists
-
 
 
 #Loop

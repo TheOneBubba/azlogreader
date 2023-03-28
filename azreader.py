@@ -61,7 +61,9 @@ def get_workspaces(token):
     	#print(match.value)
         workspaces_list.append(match.value)
     print(len(workspaces_list))
+    workspaces_list_piece=workspace_sorter(workspaces_list)
     
+def workspace_sorter(workspaces_list):
     #Code by Rowley
     #This block of code creates an array of indices to split the workspaces_list on
     #The final result is a 2D array containing workspace lists of length 50 or less
@@ -131,7 +133,6 @@ def workspaces_query(token, query, workspace, additionalworkspaces):
     #loop to iterate over a list of workspaces fed into the function
     resultset=pandas.DataFrame()
     for workspaces in additionalworkspaces :
-        #additional_workspaces=first# ['c90d1a9e-ea4b-44c9-97cd-bec0a9b0e2e7','9bbcac46-5949-4e69-afb9-84840e0e7ebe']
         pandas.set_option('display.max_rows', None)
         pandas.set_option('display.max_columns', None)
          
@@ -140,4 +141,3 @@ def workspaces_query(token, query, workspace, additionalworkspaces):
         batch = pandas.DataFrame(columns=logs[1], data=logs[2])
         resultset = resultset.append(batch, ignore_index=True) 
     return resultset
-
