@@ -1,11 +1,13 @@
 import tkinter as tk                    
-from tkinter import ttk
+from tkinter import ttk, StringVar
 from tkinter import Text, Scrollbar
-from tkinter.filedialog import asksaveasfile, asksaveasfilename, StringVar
+from tkinter.filedialog import asksaveasfile, asksaveasfilename, askopenfile
 import time
 import azreader as azr
 import traceback
-#import azreader as azr
+from threading import *
+import csv
+import pandas as pd
   
   
 root = tk.Tk()
@@ -45,6 +47,10 @@ query.grid(column = 0,row = 5)
 #Sample function to attach to a button for query window
 
 results=None
+def query_threading():
+    # Call query function
+    t1=Thread(target=query_results_writer)
+    t1.start()
 
 def query_results_writer():
     global results
@@ -62,15 +68,18 @@ def query_results_writer():
             data=azr.logquery(logtoken.get(), query.get('1.0','end').replace('\n', ' '), wks_id.get())
             results=data[0]
         elif querytype.get() == "multi":
-            data=azr.workspaces_query(logtoken.get(), query.get('1.0','end').replace('\n', ' '), wks_id.get(), workspaces)
-            results=data
-               
+            if valid_workspaces == []:    #Use all workspaces
+                data=azr.workspaces_query(logtoken.get(), query.get('1.0','end').replace('\n', ' '), wks_id.get(), workspaces)
+                results=data
+            else:    #Use our valid_workspaces from the csv:
+                data=azr.workspaces_query(logtoken.get(), query.get('1.0','end').replace('\n', ' '), wks_id.get(), valid_workspaces)
+                results=data
         msg="Ran a query at {dtg} it returned {X} results".format(dtg=time.ctime(time.time()),X=len(results.index))
         messages.insert('end', msg)
         messages.insert('end', '\n')
         msg="Query Executed\n==========\n{Q}==========\n\n".format(Q=query.get('1.0','end'))
         messages.insert('end', msg)
-        #messages.insert('end',results)
+        messages.insert('end',results)
         messages.see('end')
     except:
         messages.insert('end', time.ctime(time.time()), '', '\n')
@@ -81,7 +90,7 @@ def query_results_writer():
         
 
 #Creates button and tells it to run the function defined above on click.
-ttk.Button(tab1,text="Run Query", command=query_results_writer).grid(column = 0,row = 99)
+ttk.Button(tab1,text="Run Query", command=query_threading).grid(column = 0,row = 99)
 
 messages = Text(tab1,state="disabled", height=10, width=100, relief="sunken")
 scrollbar = Scrollbar(messages)
@@ -226,6 +235,7 @@ def rg_log_analytics_token():
     rgtoken_mesg['state']='disabled'
         
 workspaces=None
+#Get list of all workspaces
 def pop_workspace_list():
     rgtoken_mesg['state']='normal'
     rgtoken_mesg.delete('1.0', 'end')
@@ -235,20 +245,81 @@ def pop_workspace_list():
     for w in workspaces:
         n+=len(w)
 
-    rgtoken_mesg.insert('end', time.ctime(time.time()), '', '\n','',"{x} workspaces retrived".format(x=n))
+    rgtoken_mesg.insert('end', time.ctime(time.time()), '', '\n','',"{x} workspaces retrieved".format(x=n))
     rgtoken_mesg['state']='disabled'
+
+#Read list of workspaces from csv
+def read_workspace_csv():
+    rgtoken_mesg['state']='normal'
+    if(workspaces==None):
+        rgtoken_mesg.insert('end',"\nPlease retrieve all workspaces first!\n")
+    else:
+        try:
+            #Open csv file, read workspaces into a dataframe
+            file=askopenfile(mode='r',filetypes=[('Comma Separated', '*.csv')])
+            workspaces_df=pd.read_csv(str(file.name))
+            #Compare our list with the global workspaces list, check for errors
+            valid_workspace_count=0
+            #Workspace ID matching to determine if all workspaces are valid
+            global valid_workspaces
+            valid_workspaces=list()
+            invalid_workspaces=list()
+            workspace_list_concatenated=list()
+            for workspace_list in workspaces:
+                workspace_list_concatenated.extend(workspace_list)
+            for row in range(workspaces_df.shape[0]):
+                if(workspaces_df.at[row,"WORKSPACE ID"] in workspace_list_concatenated):
+                    valid_workspace_count+=1
+                    #Add to our list of valid, queryable workspaces
+                    valid_workspaces.append(workspaces_df.at[row,"WORKSPACE ID"])
+                else:
+                    #Add to our list of invalid Workspace IDs
+                    invalid_workspaces.append(workspaces_df.at[row,"WORKSPACE ID"])
+            # Need to reparse our valid_workspaces into a list of lists
+            # We will call the workspace_sorter function (At the end of this file)
+            if(valid_workspaces == []):
+                rgtoken_mesg.insert('end',"No valid workspaces, defaulting to all workspaces for the query")
+            else:
+                valid_workspaces=workspace_sorter(valid_workspaces)
     
+            rgtoken_mesg.insert('end',"\nWorkspaces from csv file successfuly loaded, \n    Total workspaces in csv:  " + str(workspaces_df.shape[0]))
+            rgtoken_mesg.insert('end',"\n    Total valid workspaces from csv:  " + str(valid_workspace_count)+"\n")
+            rgtoken_mesg.insert('end',"---------------------------\nList of invalid workspaces IDs from csv:\n")
+            rgtoken_mesg.insert('end',"NOTE: Only valid workspace IDs will be queried!\n---------------------------\n")
+            rgtoken_mesg.insert('end',str(invalid_workspaces))
+        except:
+            rgtoken_mesg.insert('end',"Error loading workspaces from csv")
+    rgtoken_mesg['state']='disabled'
 
-ttk.Button(tab3,text="Get Resource Graph API Token", command=rg_log_analytics_token).grid(column = 0,row = 14)
-ttk.Button(tab3,text="Get all workspaces", command=pop_workspace_list).grid(column = 0,row = 15)
 
-ttk.Label(tab3,textvariable=rgtoken_status).grid(column = 0,row = 16)
+ttk.Button(tab3,text="Get Resource Graph API Token", command=rg_log_analytics_token).grid(column =0,row = 14, sticky=tk.W)
+ttk.Button(tab3,text="Get all workspaces", command=pop_workspace_list).grid(column =0,row = 15, sticky=tk.W)
+ttk.Button(tab3,text="Get workspaces from csv", command=read_workspace_csv).grid(column=0,row=16, sticky=tk.W)
+
+ttk.Label(tab3,textvariable=rgtoken_status).grid(column =0 ,row = 15)
 
 rgtoken_mesg = Text(tab3,state="disabled", height=30, width=100, relief="sunken")
 rgtoken_mesg.grid(column = 0,row = 17)
 
+def workspace_sorter(workspace_list):
+    valid_workspace_lists=[]
+    if(len(workspace_list)>10):
+        remainder=len(workspace_list)
+        while(remainder > 0):
+            valid_workspace_lists.append(workspace_list[remainder-10:remainder-0])
+            if(remainder <= 10):
+                valid_workspace_lists.append(workspace_list[0:remainder-0])
+            remainder-=10
+    else:
+        valid_workspace_lists.append(workspace_list)
+    
+    valid_workspace_lists = [ele for ele in valid_workspace_lists if ele != []]
+    return valid_workspace_lists
+
+
+
 #Loop
-#root.mainloop()
+root.mainloop()
 
 
 #Extra code for later
