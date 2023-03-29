@@ -11,7 +11,7 @@ import pandas as pd
   
   
 root = tk.Tk()
-root.title("Tab Widget")
+root.title("Bulk Azure Log Reader")
 tabControl = ttk.Notebook(root)
 
 for i in range(3):
@@ -82,7 +82,7 @@ def query_results_writer():
         messages.insert('end', '\n')
         msg="Query Executed\n==========\n{Q}==========\n\n".format(Q=query.get('1.0','end'))
         messages.insert('end', msg)
-        messages.insert('end',results)
+        #messages.insert('end',results)
         messages.insert('end','\n\n')
         messages.see('end')
     except:
